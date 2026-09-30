@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 
-# 00_pair_and_validate.R
+# 00_validate_and_pair_samples.R
 #
 # No command-line paths are required.
-# Edit PROJECT_ROOT once in /filesystems/config_paths.R.
+# Configure PROJECT_ROOT, INPUT_DIR, and OUTPUT_DIR in config_paths.R.
 #
 # PURPOSE
 # -------
@@ -47,8 +47,7 @@ find_config <- function() {
     file.path(script_dir, "config_paths.R"),
     file.path(dirname(script_dir), "config_paths.R"),
     file.path(getwd(), "config_paths.R"),
-    file.path(dirname(getwd()), "config_paths.R"),
-    "/filesystems/config_paths.R"
+    file.path(dirname(getwd()), "config_paths.R")
   ))
   found <- candidates[file.exists(candidates)]
   if (length(found) == 0) {
@@ -63,7 +62,8 @@ find_config <- function() {
 CONFIG_FILE <- find_config()
 source(CONFIG_FILE)
 cat("Using config:", CONFIG_FILE, "\n")
-cat("PROJECT_ROOT:", PROJECT_ROOT, "\n")
+cat("INPUT_DIR:", INPUT_DIR, "\n")
+cat("OUTPUT_DIR:", OUTPUT_DIR, "\n")
 
 dir.create(PAIRING_OUT, recursive = TRUE, showWarnings = FALSE)
 
@@ -81,7 +81,7 @@ if (length(missing_required) > 0) {
   stop(
     "Missing required input file(s):\n",
     paste0("  - ", missing_required, collapse = "\n"),
-    "\n\nEdit PROJECT_ROOT in config_paths.R if the prefix is incorrect."
+    "\n\nEdit INPUT_DIR in config_paths.R if the input location is incorrect."
   )
 }
 

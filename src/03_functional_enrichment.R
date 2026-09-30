@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # ==============================================================================
-# 06_module_endotype_enrichment.R
+# 03_functional_enrichment.R
 #
 # Functional interpretation of:
 #   A) all 23 MSG WGCNA modules
@@ -16,12 +16,9 @@
 # descriptive characterization, NOT independent validation of the clusters.
 #
 # Run:
-#   Rscript 06_module_endotype_enrichment.R
+#   Rscript src/03_functional_enrichment.R
 #
-# Optional:
-#   DAY2_DIR=day2_results
-#   MSG_COUNTS=/path/RawCountFile_filtered_msg.txt
-#   STAGE06_OUT=day2_results/stage06_enrichment
+# Paths are obtained from config_paths.R.
 # ==============================================================================
 
 options(stringsAsFactors = FALSE)
@@ -31,15 +28,24 @@ set.seed(20260929)
 # 0. CONFIGURATION
 # ------------------------------------------------------------------------------
 
-DAY2_DIR <- Sys.getenv("DAY2_DIR", "day2_results")
-MSG_COUNTS <- Sys.getenv(
-  "MSG_COUNTS",
-  "RawCountFile_filtered_msg.txt"
-)
-OUTDIR <- Sys.getenv(
-  "STAGE06_OUT",
-  file.path(DAY2_DIR, "stage06_enrichment")
-)
+get_script_dir <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) == 0) return(getwd())
+  dirname(normalizePath(sub("^--file=", "", file_arg[1]), mustWork = FALSE))
+}
+
+CONFIG_FILE <- file.path(dirname(get_script_dir()), "config_paths.R")
+if (!file.exists(CONFIG_FILE)) {
+  stop("config_paths.R not found at: ", CONFIG_FILE, call. = FALSE)
+}
+source(CONFIG_FILE)
+DAY2_DIR <- WGCNA_OUT
+OUTDIR <- ENRICHMENT_OUT
+
+cat("Using config:", CONFIG_FILE, "\n")
+cat("INPUT_DIR:", INPUT_DIR, "\n")
+cat("OUTPUT_DIR:", OUTPUT_DIR, "\n")
 
 FDR_CUTOFF <- 0.05
 TOP_TERMS_PER_MODULE <- 10
@@ -142,14 +148,14 @@ resolve_recursive <- function(path) {
     stop(
       "Multiple files named ", basename(path), " found:\n",
       paste(hits, collapse = "\n"),
-      "\nSet MSG_COUNTS explicitly.",
+      "\nSet INPUT_DIR in config_paths.R to the exact input directory.",
       call. = FALSE
     )
   }
 
   stop(
     "Could not find ", path,
-    ". Set MSG_COUNTS to the exact path.",
+    ". Set INPUT_DIR in config_paths.R to the exact input directory.",
     call. = FALSE
   )
 }
