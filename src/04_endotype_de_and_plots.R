@@ -205,7 +205,8 @@ logmsg("SjD MSG participants: E1=%d; E2=%d; input genes=%d",
 
 design <- model.matrix(~ 0 + endotype, data = m)
 colnames(design) <- c("E1", "E2")
-stopifnot(identical(rownames(design), as.character(m$patient_id)))
+rownames(design) <- as.character(m$patient_id)
+stopifnot(identical(rownames(design), colnames(counts)))
 
 y <- edgeR::DGEList(counts = counts)
 keep <- edgeR::filterByExpr(y, design = design)
