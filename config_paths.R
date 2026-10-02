@@ -1,9 +1,26 @@
 # Central path configuration for the complete Blood–MSG pipeline.
 #
-# CURRENT LAYOUT: all input files are directly under PROJECT_ROOT.
-# Change only PROJECT_ROOT if the prefix changes.
+# Inputs and outputs intentionally use independent directories. This prevents
+# generated results from being written under the immutable input directory.
+# Every value can be overridden with an environment variable, for example:
+#   PROJECT_ROOT=/data/project INPUT_DIR=/data/raw OUTPUT_DIR=/data/results \
+#     Rscript src/00_validate_and_pair_samples.R
 
-PROJECT_ROOT <- "/data/salazarda/data/hackathon_nlm_trnascriptomics/inputs"
+PROJECT_ROOT <- Sys.getenv("PROJECT_ROOT", unset = "/mnt/file-systems")
+INPUT_DIR <- Sys.getenv("INPUT_DIR", unset = file.path(PROJECT_ROOT, "inputs"))
+OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", unset = file.path(PROJECT_ROOT, "output"))
+
+# Fail early rather than contaminating the input tree with generated files.
+clean_path <- function(path) sub("/+$", "", path.expand(path))
+if (
+  identical(clean_path(INPUT_DIR), clean_path(OUTPUT_DIR)) ||
+  startsWith(clean_path(OUTPUT_DIR), paste0(clean_path(INPUT_DIR), "/"))
+) {
+  stop(
+    "OUTPUT_DIR must be separate from, and not nested under, INPUT_DIR.\n",
+    "INPUT_DIR: ", INPUT_DIR, "\nOUTPUT_DIR: ", OUTPUT_DIR
+  )
+}
 
 # Required input files
 BLOOD_COUNTS <- file.path(INPUT_DIR, "RawCountFile_filtered_blood.txt")
