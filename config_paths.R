@@ -6,7 +6,7 @@
 #   PROJECT_ROOT=/data/project INPUT_DIR=/data/raw OUTPUT_DIR=/data/results \
 #     Rscript src/00_validate_and_pair_samples.R
 
-PROJECT_ROOT <- Sys.getenv("PROJECT_ROOT", unset = "/mnt/file-systems")
+PROJECT_ROOT <- Sys.getenv("PROJECT_ROOT", unset = "/data/salazarda/data//hackathon_nlm_trnascriptomics")
 INPUT_DIR <- Sys.getenv("INPUT_DIR", unset = file.path(PROJECT_ROOT, "inputs"))
 OUTPUT_DIR <- Sys.getenv("OUTPUT_DIR", unset = file.path(PROJECT_ROOT, "output"))
 
