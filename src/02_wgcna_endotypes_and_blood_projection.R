@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # ==============================================================================
-# 02_05_day2_wgcna_endotypes_projection.R
+# 02_wgcna_endotypes_and_blood_projection.R
 #
 # One-script Day 2 pipeline:
 #   02) WGCNA discovery in MSG
@@ -20,19 +20,14 @@
 #   - Blood receives the fixed MSG module loadings; modules are NOT re-fit in Blood.
 #   - Projection is paired by patient_id.
 #
-# Inputs expected from Stage 00 / original count files:
-#   paired_manifest.tsv
-#   RawCountFile_filtered_msg.txt
-#   RawCountFile_filtered_blood.txt
+# Inputs are obtained from config_paths.R. Stage 00 creates the paired manifest;
+# the count matrices remain in INPUT_DIR.
 #
 # Run:
-#   Rscript 02_05_day2_wgcna_endotypes_projection.R
+#   Rscript src/02_wgcna_endotypes_and_blood_projection.R
 #
-# Optional environment variables:
-#   PAIRED_MANIFEST=/path/to/paired_manifest.tsv
-#   MSG_COUNTS=/path/to/RawCountFile_filtered_msg.txt
-#   BLOOD_COUNTS=/path/to/RawCountFile_filtered_blood.txt
-#   DAY2_OUT=/path/to/day2_results
+# Path environment variables are documented in config_paths.R.
+# Optional runtime variable:
 #   WGCNA_THREADS=8
 #
 # ==============================================================================
@@ -44,10 +39,23 @@ set.seed(20260929)
 # 0. CONFIGURATION
 # ------------------------------------------------------------------------------
 
-PAIRED_MANIFEST <- Sys.getenv("PAIRED_MANIFEST", "paired_manifest.tsv")
-MSG_COUNTS      <- Sys.getenv("MSG_COUNTS", "RawCountFile_filtered_msg.txt")
-BLOOD_COUNTS    <- Sys.getenv("BLOOD_COUNTS", "RawCountFile_filtered_blood.txt")
-OUTDIR          <- Sys.getenv("DAY2_OUT", "day2_results")
+get_script_dir <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", args, value = TRUE)
+  if (length(file_arg) == 0) return(getwd())
+  dirname(normalizePath(sub("^--file=", "", file_arg[1]), mustWork = FALSE))
+}
+
+CONFIG_FILE <- file.path(dirname(get_script_dir()), "config_paths.R")
+if (!file.exists(CONFIG_FILE)) {
+  stop("config_paths.R not found at: ", CONFIG_FILE, call. = FALSE)
+}
+source(CONFIG_FILE)
+OUTDIR <- WGCNA_OUT
+
+cat("Using config:", CONFIG_FILE, "\n")
+cat("INPUT_DIR:", INPUT_DIR, "\n")
+cat("OUTPUT_DIR:", OUTPUT_DIR, "\n")
 
 # WGCNA settings: matched to the NIH-NLM endotypes-transcriptomics architecture.
 SOFT_R2_TARGET  <- 0.90
@@ -142,7 +150,7 @@ resolve_input <- function(path) {
 
   stop(
     "Could not find input file: ", path,
-    "\nSet PAIRED_MANIFEST, MSG_COUNTS, or BLOOD_COUNTS to the exact path.",
+    "\nUpdate INPUT_DIR or OUTPUT_DIR in config_paths.R.",
     call. = FALSE
   )
 }

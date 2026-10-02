@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 
-# 01_hackathon_paired_blood_msg.R
+# 01_paired_differential_expression.R
 #
 # No command-line paths are required.
-# Edit PROJECT_ROOT once in /filesystems/config_paths.R.
+# Configure PROJECT_ROOT, INPUT_DIR, and OUTPUT_DIR in config_paths.R.
 #
 # INPUT
 # -----
@@ -52,8 +52,7 @@ find_config <- function() {
     file.path(script_dir, "config_paths.R"),
     file.path(dirname(script_dir), "config_paths.R"),
     file.path(getwd(), "config_paths.R"),
-    file.path(dirname(getwd()), "config_paths.R"),
-    "/filesystems/config_paths.R"
+    file.path(dirname(getwd()), "config_paths.R")
   ))
   found <- candidates[file.exists(candidates)]
   if (length(found) == 0) {
@@ -68,13 +67,14 @@ find_config <- function() {
 CONFIG_FILE <- find_config()
 source(CONFIG_FILE)
 cat("Using config:", CONFIG_FILE, "\n")
-cat("PROJECT_ROOT:", PROJECT_ROOT, "\n")
+cat("INPUT_DIR:", INPUT_DIR, "\n")
+cat("OUTPUT_DIR:", OUTPUT_DIR, "\n")
 
 if (!file.exists(PAIRING_BUNDLE)) {
   stop(
     "Pairing bundle not found:\n  ",
     PAIRING_BUNDLE,
-    "\nRun scripts/00_pair_and_validate.R first."
+    "\nRun src/00_validate_and_pair_samples.R first."
   )
 }
 
@@ -136,7 +136,7 @@ if (length(missing_manifest) > 0) {
   stop(
     "Manifest is missing: ",
     paste(missing_manifest, collapse = ", "),
-    ". Re-run 00_pair_and_validate.R."
+    ". Re-run 00_validate_and_pair_samples.R."
   )
 }
 
