@@ -3,7 +3,7 @@
 # CURRENT LAYOUT: all input files are directly under PROJECT_ROOT.
 # Change only PROJECT_ROOT if the prefix changes.
 
-PROJECT_ROOT <- "/mnt/file-systems"
+PROJECT_ROOT <- "/data/salazarda/data/hackathon_nlm_trnascriptomics/inputs"
 
 # Required input files
 BLOOD_COUNTS <- file.path(PROJECT_ROOT, "RawCountFile_filtered_blood.txt")
