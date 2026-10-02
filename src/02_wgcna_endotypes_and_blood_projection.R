@@ -1114,55 +1114,251 @@ end_all$assignments$disease_group <- meta_msg$disease_group[
 wtsv(end_all$assignments, "04_patient_clusters_all97.tsv")
 wtsv(end_all$silhouette, "04_silhouette_all97.tsv")
 
-# Dendrogram + PCA plots.
-pdf(file.path(OUTDIR, "04_endotypes_SjD_diagnostics.pdf"), width = 10, height = 7)
-par(mfrow = c(2, 2))
+# Presentation-friendly endotype diagnostics. Only plotting is changed below:
+# module scores, Ward.D2 trees, silhouettes, PCA and selected k remain untouched.
+# Individual patient IDs and membership are retained in the TSV exports; printing
+# one label per leaf makes 47/97-patient dendrograms unreadable.
+sjd_levels <- sort(unique(end_sjd$assignments$endotype))
+all_levels <- sort(unique(end_all$assignments$endotype))
+module_palette <- c("#2762A8", "#DE5473", "#129E92", "#E2A23A", "#8856A7", "#64748B")
+sjd_palette <- setNames(module_palette[seq_along(sjd_levels)], sjd_levels)
+all_palette <- setNames(module_palette[seq_along(all_levels)], all_levels)
+disease_palette <- c(SjD = "#2762A8", nonSjD = "#E2A23A", HV = "#129E92")
 
-plot(
-  end_sjd$hc,
-  labels = end_sjd$assignments$endotype,
-  main = paste0("SjD Ward.D2 endotypes (k=", end_sjd$best_k, ")"),
-  xlab = "",
-  sub = ""
+# Save the exact left-to-right dendrogram leaf order to keep patient-level
+# traceability even though crowded labels are intentionally hidden in the figures.
+wtsv(
+  data.frame(
+    leaf_position = seq_len(nrow(end_sjd$assignments)),
+    end_sjd$assignments[end_sjd$hc$order, , drop = FALSE],
+    row.names = NULL
+  ),
+  "04_SjD_dendrogram_leaf_order.tsv"
 )
-
-plot(
-  end_sjd$silhouette$k,
-  end_sjd$silhouette$average_silhouette,
-  type = "b",
-  xlab = "k",
-  ylab = "Average silhouette",
-  main = "Choice of k"
-)
-abline(v = end_sjd$best_k, lty = 2)
-
-pc_sjd <- end_sjd$pc$x
-grp_num <- as.integer(factor(end_sjd$assignments$endotype))
-plot(
-  pc_sjd[, 1],
-  pc_sjd[, 2],
-  pch = 19,
-  col = grp_num,
-  xlab = "PC1 of module space",
-  ylab = "PC2 of module space",
-  main = "SjD module-space PCA"
-)
-legend(
-  "topright",
-  legend = levels(factor(end_sjd$assignments$endotype)),
-  col = seq_along(levels(factor(end_sjd$assignments$endotype))),
-  pch = 19,
-  cex = 0.8
+wtsv(
+  data.frame(
+    leaf_position = seq_len(nrow(end_all$assignments)),
+    end_all$assignments[end_all$hc$order, , drop = FALSE],
+    row.names = NULL
+  ),
+  "04_all97_dendrogram_leaf_order.tsv"
 )
 
-plot(
-  end_all$hc,
-  labels = end_all$assignments$disease_group,
-  main = paste0("All 97: Ward.D2 patient map (k=", end_all$best_k, ")"),
-  xlab = "",
-  sub = ""
+# Render a full dendrogram plus categorical tracks aligned with hc$order.
+# tracks is a list of list(name, values, palette), where values are in the
+# ORIGINAL clustering input order (not dendrogram order).
+plot_endotype_tree <- function(result, title, tracks) {
+  hc <- result$hc
+  n <- length(hc$order)
+  hmax <- max(hc$height)
+  strip_height <- hmax * 0.025
+  strip_step <- hmax * 0.040
+  lower_limit <- -(length(tracks) * strip_step + 0.035 * hmax)
+
+  plot(
+    hc,
+    labels = rep("", n),
+    hang = -1,
+    ylim = c(lower_limit, hmax * 1.08),
+    axes = FALSE,
+    main = title,
+    xlab = "",
+    ylab = "Ward.D2 height",
+    sub = "",
+    cex.main = 1.05
+  )
+  axis(2, at = pretty(c(0, hmax)), las = 1, cex.axis = 0.78)
+  box(bty = "l")
+
+  # The dashed line visualises the ALREADY selected k, without re-clustering.
+  if (result$best_k >= 2 && result$best_k < n) {
+    cut_height <- mean(hc$height[c(n - result$best_k, n - result$best_k + 1)])
+    abline(h = cut_height, lty = 3, lwd = 1.4, col = "#64748B")
+  }
+
+  key_labels <- character()
+  key_colors <- character()
+  for (i in seq_along(tracks)) {
+    track <- tracks[[i]]
+    values <- as.character(track$values)
+    if (length(values) != n) stop("Dendrogram track length does not match patient count.")
+    ordered <- values[hc$order]
+    leaf_colors <- unname(track$palette[ordered])
+    if (anyNA(leaf_colors)) stop("Dendrogram track contains values absent from its palette.")
+
+    yy <- -i * strip_step
+    rect(
+      xleft = seq_len(n) - 0.48,
+      ybottom = yy,
+      xright = seq_len(n) + 0.48,
+      ytop = yy + strip_height,
+      col = leaf_colors,
+      border = NA
+    )
+
+    present <- names(track$palette)[names(track$palette) %in% unique(values)]
+    key_labels <- c(
+      key_labels,
+      sprintf(
+        "%s %s (n=%d)",
+        track$name,
+        present,
+        vapply(present, function(x) sum(values == x), integer(1))
+      )
+    )
+    key_colors <- c(key_colors, unname(track$palette[present]))
+  }
+  legend(
+    "topright",
+    legend = key_labels,
+    fill = key_colors,
+    ncol = if (length(key_labels) > 4) 2 else 1,
+    cex = if (length(key_labels) > 4) 0.62 else 0.74,
+    bty = "o",
+    bg = "white",
+    box.col = "#E2E8F0",
+    inset = 0.01
+  )
+  mtext(
+    paste0("Color bars (top to bottom): ", paste(vapply(tracks, `[[`, character(1), "name"), collapse = " / ")),
+    side = 1, line = 2.0, cex = 0.76, col = "#475569"
+  )
+}
+
+draw_sjd_dendrogram <- function() {
+  plot_endotype_tree(
+    end_sjd,
+    paste0("SjD endotypes | Ward.D2 (k=", end_sjd$best_k, ")"),
+    list(list(name = "Endotype", values = end_sjd$assignments$endotype,
+              palette = sjd_palette))
+  )
+}
+
+draw_silhouette <- function() {
+  sil <- end_sjd$silhouette
+  good <- is.finite(sil$average_silhouette)
+  if (!any(good)) stop("No finite silhouette values to plot.")
+  yr <- range(c(0, sil$average_silhouette[good]))
+  pad <- max(0.05, diff(yr) * 0.18)
+  yr <- yr + c(-pad, pad)
+
+  plot(
+    NA_real_, NA_real_,
+    xlim = range(sil$k) + c(-0.35, 0.35),
+    ylim = yr,
+    xaxt = "n",
+    xlab = "Number of endotypes (k)",
+    ylab = "Average silhouette",
+    main = "Selection of k | SjD",
+    bty = "l"
+  )
+  axis(1, at = sil$k)
+  abline(h = 0, col = "#E2E8F0")
+  abline(v = end_sjd$best_k, lty = 3, col = "#64748B")
+
+  if (sum(good) > 1) {
+    lines(sil$k[good], sil$average_silhouette[good], col = "#2762A8", lwd = 1.5)
+  }
+  points(sil$k[good], sil$average_silhouette[good],
+         pch = 19, cex = 1.25, col = "#2762A8")
+
+  # An NA is an unscored k, not a zero silhouette.
+  if (any(!good)) {
+    points(sil$k[!good], rep(yr[1] + 0.06 * diff(yr), sum(!good)),
+           pch = 4, cex = 1.05, lwd = 1.3, col = "#94A3B8")
+    mtext(
+      sprintf("Crosses: k excluded by minimum cluster size (n >= %d).",
+              ENDOTYPE_MIN_CLUSTER),
+      side = 1, line = 2.6, cex = 0.76, col = "#64748B"
+    )
+  }
+  selected <- match(end_sjd$best_k, sil$k)
+  text(
+    sil$k[selected], sil$average_silhouette[selected],
+    labels = sprintf("Selected: k=%d (%.3f)", end_sjd$best_k,
+                     sil$average_silhouette[selected]),
+    pos = if (end_sjd$best_k < mean(sil$k)) 4 else 2,
+    offset = 0.7, cex = 0.82, font = 2, col = "#173D68"
+  )
+}
+
+draw_sjd_pca <- function() {
+  pc <- end_sjd$pc$x
+  groups <- as.character(end_sjd$assignments$endotype)
+  explained <- 100 * end_sjd$pc$sdev^2 / sum(end_sjd$pc$sdev^2)
+
+  plot(
+    pc[, 1], pc[, 2], type = "n",
+    xlab = sprintf("PC1 of module space (%.1f%% variance)", explained[1]),
+    ylab = sprintf("PC2 of module space (%.1f%% variance)", explained[2]),
+    main = "SjD patients | module-space PCA",
+    bty = "l"
+  )
+  grid(col = "#E9EDF2")
+  abline(h = 0, v = 0, lty = 3, col = "#CBD5E1")
+  points(pc[, 1], pc[, 2], pch = 21, cex = 1.35, lwd = 0.65,
+         col = "white", bg = unname(sjd_palette[groups]))
+  legend(
+    "topright",
+    legend = sprintf("%s (n=%d)", sjd_levels,
+                     vapply(sjd_levels, function(x) sum(groups == x), integer(1))),
+    pch = 21, pt.bg = unname(sjd_palette[sjd_levels]), col = "white",
+    pt.cex = 1.4, cex = 0.84, bty = "o", bg = "white",
+    box.col = "#E2E8F0"
+  )
+}
+
+draw_all97_dendrogram <- function() {
+  plot_endotype_tree(
+    end_all,
+    paste0("All 97 patients | Ward.D2 (k=", end_all$best_k, ")"),
+    list(
+      list(name = "Diagnosis", values = end_all$assignments$disease_group,
+           palette = disease_palette),
+      list(name = "Cluster", values = end_all$assignments$endotype,
+           palette = all_palette)
+    )
+  )
+}
+
+diagnostic_panels <- list(
+  "04a_SjD_endotype_dendrogram.png" = draw_sjd_dendrogram,
+  "04b_SjD_k_selection.png" = draw_silhouette,
+  "04c_SjD_module_space_PCA.png" = draw_sjd_pca,
+  "04d_all97_patient_dendrogram.png" = draw_all97_dendrogram
 )
+
+# One larger, readable four-panel overview (preserves the original filename).
+pdf(file.path(OUTDIR, "04_endotypes_SjD_diagnostics.pdf"),
+    width = 16, height = 11, useDingbats = FALSE)
+par(mfrow = c(2, 2), mar = c(4.8, 4.5, 3.2, 1.6),
+    oma = c(0, 0, 1.5, 0), cex = 1.0)
+for (draw_panel in diagnostic_panels) draw_panel()
+mtext("MSG module-eigengene space | Endotype diagnostics",
+      side = 3, outer = TRUE, line = 0, font = 2, cex = 1.15)
 dev.off()
+
+# A second PDF gives every diagnostic its own spacious page.
+pdf(file.path(OUTDIR, "04_endotypes_SjD_diagnostics_detailed.pdf"),
+    width = 13, height = 8.5, onefile = TRUE, useDingbats = FALSE)
+for (draw_panel in diagnostic_panels) {
+  par(mfrow = c(1, 1), mar = c(5.3, 5, 3.8, 2), cex = 1.05)
+  draw_panel()
+}
+dev.off()
+
+# Individual slide-ready PNGs; PDFs above are always produced, even on an R
+# build without PNG support.
+if (capabilities("png")) {
+  for (file_name in names(diagnostic_panels)) {
+    png(file.path(OUTDIR, file_name), width = 3200, height = 2000, res = 250)
+    par(mfrow = c(1, 1), mar = c(5.3, 5, 3.8, 2), cex = 1.05)
+    diagnostic_panels[[file_name]]()
+    dev.off()
+  }
+} else {
+  warning("PNG device unavailable; both vector PDF diagnostics were still saved.")
+}
 
 # ------------------------------------------------------------------------------
 # 8. STAGE 05 — PROJECT FIXED MSG MODULES INTO BLOOD
