@@ -291,9 +291,9 @@ p_volcano <- ggplot(de, aes(x = logFC, y = minus_log10_FDR)) +
   scale_color_manual(values = palette, drop = FALSE) +
   labs(
     title = "Exploratory E1 vs E2 differential expression in MSG",
-    subtitle = sprintf("SjD only: E1 n=%d, E2 n=%d | TMM + limma-voom | log2FC=E1−E2",
+    subtitle = sprintf("SjD only: E1 n=%d, E2 n=%d | TMM + limma-voom | log2FC=E1-E2",
                        sum(idx_e1), sum(idx_e2)),
-    x = "log2 fold change (E1 − E2)",
+    x = "log2 fold change (E1 - E2)",
     y = expression(-log[10]("BH-adjusted p-value")),
     color = "Gene status",
     caption = paste(
@@ -381,7 +381,10 @@ if (!identical(colnames(h), m$patient_id)) {
 # Z-score ACROSS PATIENTS for each gene (not between group means).
 h_z <- t(scale(t(h)))
 h_z[!is.finite(h_z)] <- 0
-h_z <- pmax(-2.5, pmin(2.5, h_z))
+# Subassignment preserves the matrix dimensions and dimnames. pmin/pmax drop
+# those attributes, which turns h_z into a vector and makes colnames<- fail.
+h_z[h_z < -2.5] <- -2.5
+h_z[h_z > 2.5] <- 2.5
 
 labels <- paste0(
   as.character(m$endotype), "_",
