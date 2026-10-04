@@ -27,6 +27,8 @@ The pipeline addresses four related questions:
     └── 03_functional_enrichment.R          # enrichment and GSEA
 ```
 
+An optional read-only Streamlit research dashboard is available in `dashboard/`. It visualizes completed pipeline outputs without rerunning or changing the scientific analysis. See [`dashboard/README.md`](dashboard/README.md) for required outputs, tests, and secure compute-node launch instructions.
+
 The numeric prefixes represent the actual execution order. Do not run scripts 01–03 before the preceding stage has completed successfully.
 
 ## Data and output organization
